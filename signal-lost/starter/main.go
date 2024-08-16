@@ -32,11 +32,11 @@ func main() {
 	}
 	log.Println("Started workflow", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
 
-	// After 8 seconds, send a callback signal to the workflow
+	// After 5 seconds, send a callback signal to the workflow
 	// to simulate a signal lost scenario.
 
-	// Wait for 8 seconds
-	<-time.After(8 * time.Second)
+	// Wait for 5 seconds
+	<-time.After(5 * time.Second)
 
 	// Send a signal to the workflow
 	err = c.SignalWorkflow(context.Background(), we.GetID(), we.GetRunID(), signallost.CallbackSignalName, "callback-signal-input")
@@ -44,10 +44,10 @@ func main() {
 		log.Fatalln("Unable to signal workflow", err)
 	}
 
-	// After 20 seconds, send an exit signal to the workflow
+	// After 15 seconds, send an exit signal to the workflow
 
-	// Wait for 20 seconds
-	<-time.After(20 * time.Second)
+	// Wait for 15 seconds
+	<-time.After(15 * time.Second)
 
 	// Send a signal to the workflow
 	err = c.SignalWorkflow(context.Background(), we.GetID(), we.GetRunID(), signallost.ExitSignalName, "exit-signal-input")

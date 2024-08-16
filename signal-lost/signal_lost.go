@@ -46,39 +46,11 @@ func WorkflowDefinition(ctx workflow.Context) error {
 	callbackSignalChannel := workflow.GetSignalChannel(ctx, CallbackSignalName)
 	exitSignalChannel := workflow.GetSignalChannel(ctx, ExitSignalName)
 
-	eventsCounter := 0
-
-	eventsChannel := workflow.NewBufferedChannel(ctx, 100)
-
-	// Add first event to the events channel.
-	eventsChannel.Send(ctx, "eventOne")
-
-	areEventsProcessed := false
+	shouldAddDefault := true
 	for {
 		// Wait for the next signal or timeout.
 		selector := workflow.NewSelector(ctx)
 		exit := false
-
-		var eventHandlerFunc = func(c workflow.ReceiveChannel, more bool) {
-			var event string
-			c.Receive(ctx, &event)
-			// Start ActivityOne
-			err := workflow.ExecuteActivity(ctx, ActivityOneDefinition, &ActivityOneInputParams{
-				EventInfo: event,
-			}).Get(ctx, nil)
-			if err != nil {
-				logger.Error("ActivityOne failed.", "Error", err)
-			}
-			eventsCounter++
-			areEventsProcessed = true
-
-			// If eventsCounter is less than 2, send the next event to the events channel.
-			if eventsCounter < 2 {
-				eventString := "event" + strconv.Itoa(eventsCounter+1)
-				eventsChannel.Send(ctx, eventString)
-			}
-		}
-		selector.AddReceive(eventsChannel, eventHandlerFunc)
 
 		var callbackHandlerFunc = func(c workflow.ReceiveChannel, more bool) {
 			var signalData string
@@ -86,7 +58,7 @@ func WorkflowDefinition(ctx workflow.Context) error {
 			logger.Info("Received signal.", "SignalData", signalData)
 
 			// Starting ActivityTwo
-			err := workflow.ExecuteActivity(ctx, ActivityTwoDefinition, &ActivityTwoInputParams{}).Get(ctx, nil)
+			err := workflow.ExecuteActivity(ctx, CallbackActivity, &CallbackInputParams{}).Get(ctx, nil)
 			if err != nil {
 				logger.Error("ActivityTwo failed.", "Error", err)
 			}
@@ -99,30 +71,30 @@ func WorkflowDefinition(ctx workflow.Context) error {
 			exit = true
 		})
 
-		if areEventsProcessed {
+		if shouldAddDefault {
 			selector.AddDefault(func() {
-				logger.Info("No more events to process.")
+				logger.Info("Starting default activity.")
 
-				// Execute ActivityThree
-				var activityThreeOutput *ActivityThreeOutputParams
-				err := workflow.ExecuteActivity(ctx, ActivityThreeDefinition, &ActivityThreeInputParams{}).Get(ctx, &activityThreeOutput)
+				// Execute DefaultActivity
+				var DefaultActivityOutput *DefaultActivityOutputParams
+				err := workflow.ExecuteActivity(ctx, DefaultActivity, &DefaultActivityInputParams{}).Get(ctx, &DefaultActivityOutput)
 				if err != nil {
-					logger.Error("ActivityThree failed.", "Error", err)
+					logger.Error("DefaultActivity failed.", "Error", err)
 				}
 
-				if activityThreeOutput.shouldExit {
+				if DefaultActivityOutput.shouldExit {
 					logger.Info("Exiting the workflow.")
 					exit = true
 				}
 
-				areEventsProcessed = false
+				shouldAddDefault = false
 			})
 		}
 
 		selector.Select(ctx)
 
 		logger.Info("Selector.HasPending: " + strconv.FormatBool(selector.HasPending()))
-		logger.Info("At the end of loop, areEventsProcessed: " + strconv.FormatBool(areEventsProcessed))
+		logger.Info("At the end of loop, shouldAddDefault: " + strconv.FormatBool(shouldAddDefault))
 		if exit {
 			break
 		}
@@ -134,70 +106,47 @@ func WorkflowDefinition(ctx workflow.Context) error {
 
 // ======================================================
 
-type ActivityOneInputParams struct {
-	EventInfo string
+type CallbackInputParams struct {
 }
 
-type ActivityOneOutputParams struct {
-}
-
-// First activity that runs for 5 seconds precisely
-func ActivityOneDefinition(ctx context.Context, params *ActivityOneInputParams) (*ActivityOneOutputParams, error) {
-	logger := activity.GetLogger(ctx)
-
-	logger.Info("ActivityOneDefinition starting, EventInfo: " + params.EventInfo)
-
-	// Sleep for 2 seconds
-	time.Sleep(2 * time.Second)
-
-	logger.Info("ActivityOneDefinition finished")
-
-	return nil, nil
-}
-
-// ======================================================
-
-type ActivityTwoInputParams struct {
-}
-
-type ActivityTwoOutputParams struct {
+type CallbackOutputParams struct {
 }
 
 // Second activity that runs for 5 seconds precisely
-func ActivityTwoDefinition(ctx context.Context, params *ActivityTwoInputParams) (*ActivityTwoOutputParams, error) {
+func CallbackActivity(ctx context.Context, params *CallbackInputParams) (*CallbackOutputParams, error) {
 	logger := activity.GetLogger(ctx)
 
-	logger.Info("ActivityTwoDefinition starting")
+	logger.Info("CallbackActivity starting")
 
 	// Sleep for 5 seconds
 	time.Sleep(5 * time.Second)
 
-	logger.Info("ActivityTwoDefinition finished")
+	logger.Info("CallbackActivity finished")
 
 	return nil, nil
 }
 
 // ======================================================
 
-type ActivityThreeInputParams struct {
+type DefaultActivityInputParams struct {
 }
 
-type ActivityThreeOutputParams struct {
+type DefaultActivityOutputParams struct {
 	shouldExit bool
 }
 
 // Third activity that runs for 10 seconds precisely
-func ActivityThreeDefinition(ctx context.Context, params *ActivityThreeInputParams) (*ActivityThreeOutputParams, error) {
+func DefaultActivity(ctx context.Context, params *DefaultActivityInputParams) (*DefaultActivityOutputParams, error) {
 	logger := activity.GetLogger(ctx)
 
-	logger.Info("ActivityThree starting")
+	logger.Info("DefaultActivity starting")
 
 	// Sleep for 10 seconds
 	time.Sleep(10 * time.Second)
 
-	logger.Info("ActivityThree finished")
+	logger.Info("DefaultActivity finished")
 
-	return &ActivityThreeOutputParams{
+	return &DefaultActivityOutputParams{
 		shouldExit: false,
 	}, nil
 }

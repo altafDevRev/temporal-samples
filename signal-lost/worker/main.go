@@ -24,9 +24,8 @@ func main() {
 	w.RegisterWorkflow(signallost.WorkflowDefinition)
 
 	// Register the activity
-	w.RegisterActivity(signallost.ActivityOneDefinition)
-	w.RegisterActivity(signallost.ActivityTwoDefinition)
-	w.RegisterActivity(signallost.ActivityThreeDefinition)
+	w.RegisterActivity(signallost.CallbackActivity)
+	w.RegisterActivity(signallost.DefaultActivity)
 
 	err = w.Run(worker.InterruptCh())
 	if err != nil {
