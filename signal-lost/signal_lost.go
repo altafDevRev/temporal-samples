@@ -28,15 +28,6 @@ func WorkflowDefinition(ctx workflow.Context) error {
 			BackoffCoefficient: 2.0,
 			MaximumInterval:    time.Minute,
 			MaximumAttempts:    3,
-
-			// Non-retryable error types.
-			NonRetryableErrorTypes: []string{
-				"InvalidArgumentError",
-				"AlreadyExistsError",
-				"UnauthorizedError",
-				"UnimplementedError",
-				"NotFoundError",
-			},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -57,10 +48,10 @@ func WorkflowDefinition(ctx workflow.Context) error {
 			c.Receive(ctx, &signalData)
 			logger.Info("Received signal.", "SignalData", signalData)
 
-			// Starting ActivityTwo
+			// Starting CallbackActivity
 			err := workflow.ExecuteActivity(ctx, CallbackActivity, &CallbackInputParams{}).Get(ctx, nil)
 			if err != nil {
-				logger.Error("ActivityTwo failed.", "Error", err)
+				logger.Error("CallbackActivity failed.", "Error", err)
 			}
 		}
 		selector.AddReceive(callbackSignalChannel, callbackHandlerFunc)
